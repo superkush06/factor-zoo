@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "factor-zoo"
-version = "0.1.0"
+version = "0.2.0"
 description = "Equity-factor reproductions: momentum / value / size / quality / low-vol / reversal with Fama-MacBeth."
 authors = [{name = "superkush06"}]
 readme = "README.md"

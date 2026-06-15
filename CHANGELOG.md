@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.0] - 2026-06-XX
+
+### Added
+- **Real-data loaders** (`universe_from_prices`, `load_prices_csv`): build a
+  `Universe` from a real wide price panel so the library runs on your own data,
+  not just the synthetic generator. Pure stdlib CSV parsing, no pandas.
+- `crossect.rolling_ic` — trailing-window mean information coefficient.
+- Factor **tearsheet hero chart** (`examples/render_hero.py` → `docs/demo.png`):
+  cumulative long-short factor returns + rolling momentum IC.
+
 ## [0.1.0] - 2027-01-XX
 
 ### Added

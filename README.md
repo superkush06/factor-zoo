@@ -12,8 +12,14 @@
 > **Why synthetic?** Real research uses CRSP/Compustat (license-walled).
 > Synthetic data with known factor structure lets the *pipeline*
 > recover known premia — proving the code is right, not that the
-> factors work in live markets. Swap in a loader for real data and
-> the rest of the pipeline is unchanged.
+> factors work in live markets. Point it at **your own data** with
+> `load_prices_csv` and the rest of the pipeline is unchanged.
+
+![factor tearsheet](docs/demo.png)
+
+*Long-short performance of four factors on the synthetic universe (value is the
+loaded premium, so it dominates — exactly what Fama-MacBeth recovers), with the
+rolling 60-day momentum IC below. Reproduce: `python examples/render_hero.py`.*
 
 ## TL;DR
 
@@ -40,8 +46,11 @@ print(res.coefficients, res.t_stats)
   + cross-sectional z-score.
 - `portfolio.{quintile_sort_returns, long_short_return,
   cumulative, sharpe_annualised}` — daily quintile sort + L-S aggregation.
-- `crossect.{fama_macbeth, rank_information_coefficient}` — daily
-  cross-sectional regressions and IC computation.
+- `crossect.{fama_macbeth, rank_information_coefficient, rolling_ic}` —
+  daily cross-sectional regressions and (rolling) IC computation.
+- `loaders.{universe_from_prices, load_prices_csv}` — build a `Universe`
+  from a real wide price panel (yfinance / CRSP / CSV export), no pandas.
+  Price factors work from prices alone; fundamentals are optional.
 
 ## Example output
 
