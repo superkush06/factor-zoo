@@ -40,3 +40,20 @@ def test_fama_macbeth_intercept_recovers_market():
     res = fama_macbeth([s], fwd, add_intercept=True)
     # The intercept averages cross-sectional means each day
     assert abs(res.coefficients[0]) < 0.01  # ~daily return scale
+
+
+def test_rolling_ic_smooths_daily_ic():
+    import numpy as np
+
+    from fz.crossect import rank_information_coefficient, rolling_ic
+    rng = np.random.default_rng(0)
+    n_days, n_stocks = 120, 80
+    scores = rng.standard_normal((n_days, n_stocks))
+    fwd = rng.standard_normal((n_days, n_stocks))
+    ric = rolling_ic(scores, fwd, window=30)
+    daily = rank_information_coefficient(scores, fwd)
+    assert ric.shape == (n_days,)
+    # rolling series has lower variance than the raw daily IC
+    assert np.nanstd(ric) < np.nanstd(daily)
+    # values stay in [-1, 1]
+    assert np.all(np.isnan(ric) | ((ric >= -1) & (ric <= 1)))

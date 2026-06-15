@@ -89,5 +89,23 @@ def rank_information_coefficient(scores: np.ndarray, fwd_returns: np.ndarray):
     return out
 
 
+def rolling_ic(scores: np.ndarray, fwd_returns: np.ndarray,
+               window: int = 60) -> np.ndarray:
+    """Trailing-`window` mean of the daily rank IC.
+
+    A factor's per-day IC is noisy; the rolling average is what you actually
+    look at to judge whether the signal is alive or decaying over time.
+    NaN until enough non-NaN daily ICs accumulate in the window.
+    """
+    ic = rank_information_coefficient(scores, fwd_returns)
+    out = np.full_like(ic, np.nan)
+    for t in range(len(ic)):
+        w = ic[max(0, t - window + 1): t + 1]
+        valid = w[~np.isnan(w)]
+        if valid.size:
+            out[t] = valid.mean()
+    return out
+
+
 def _ranks(x: np.ndarray) -> np.ndarray:
     return np.argsort(np.argsort(x)).astype(np.float64)
