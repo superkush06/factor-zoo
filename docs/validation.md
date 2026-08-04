@@ -134,7 +134,7 @@ a disagreement here would be a defect rather than a difference of setting.
 | 8 | A universe with no premium in it yields no premium | +0.0513 bp/day (s.e. 0.1929), +0.27 s.e. from truth | +0.0000 bp/day | the planted value, exactly known | yes |
 | 9 | The 95% Fama-MacBeth interval covers the truth 95% of the time | 0.953 (286/300 replications) | 0.950 | nominal coverage of a two-sided Gaussian interval | yes |
 | 10 | Rank IC of a bivariate normal matches the Spearman identity | 0.02000±0.00090, 0.04590±0.00092, 0.09463±0.00091 | 0.01910, 0.04775, 0.09553 | ρ_s = (6/π) arcsin(ρ/2) at Pearson ρ = 0.02, 0.05, 0.10 | yes |
-| 11 | `hac_lags=0` is the ordinary sample variance | abs difference = 0.00e+00 | 0 | same code path, L = 0 term only | yes |
+| 11 | `hac_lags=0` is the ordinary sample variance | abs difference = < 1e-15 | 0 | same code path, L = 0 term only | yes |
 | 12 | Bartlett long-run variance of an MA(1) | 2.3551 | 2.3600 | γ_0 + 2 Σ_l (1 − l/(L+1)) γ_l with θ = 0.6, L = 5 | yes |
 | 13 | Bartlett long-run variance of an AR(1) | 4.4947 | 4.4817 | γ_l = ρ^l with ρ = 0.7, L = 12 | yes |
 | 14 | t-stat inflation from h-day overlap, at h = 5, 21, 63 | 1.843, 3.748, 6.488 | 1.844, 3.744, 6.481 | √(1 + (h−1)(2h−1)/(3h)) for an equally weighted MA(h−1) | yes |

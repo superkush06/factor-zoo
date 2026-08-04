@@ -405,7 +405,11 @@ def newey_west_checks() -> list[Check]:
 
     return [
         Check("`hac_lags=0` is the ordinary sample variance",
-              f"abs difference = {exact:.2e}", "same code path, L = 0 term only",
+              # the exact value here is a 1-ULP artefact that differs between
+              # interpreters (2.22e-16 on 3.11, 0.00e+00 on 3.12), so report
+              # it at a stable resolution rather than pinning the last bit
+              f"abs difference = {'< 1e-15' if exact < 1e-15 else f'{exact:.2e}'}",
+              "same code path, L = 0 term only",
               "0", exact < 1e-12, "Exact, not approximate: same estimator."),
         Check("Bartlett long-run variance of an MA(1)",
               f"{ma1_ours:.4f}",
