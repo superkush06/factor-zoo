@@ -16,7 +16,7 @@ def test_universe_from_prices_shapes_and_returns():
     u = universe_from_prices(prices, tickers=["X", "Y"])
     assert u.prices.shape == (3, 2)
     assert u.returns.shape == (3, 2)
-    np.testing.assert_allclose(u.returns[0], [0.0, 0.0])           # row 0 zeros
+    assert np.isnan(u.returns[0]).all()                             # row 0: no prior price
     np.testing.assert_allclose(u.returns[1], [0.10, 0.10])          # +10% both
     assert u.tickers == ["X", "Y"]
 

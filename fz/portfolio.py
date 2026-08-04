@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from .crossect import average_ranks
+
 
 def quintile_sort_returns(scores: np.ndarray, fwd_returns: np.ndarray,
                           n_quantiles: int = 5) -> np.ndarray:
@@ -12,6 +14,8 @@ def quintile_sort_returns(scores: np.ndarray, fwd_returns: np.ndarray,
 
     Returns shape (n_days, n_quantiles). NaN where scores are all NaN.
     Quantile 0 is bottom (smallest score), quantile n-1 is top.
+    Tied scores share an average rank, so quantile membership does not
+    depend on ticker order (winsorised scores always tie in the tails).
     """
     n_days, n_stocks = scores.shape
     out = np.full((n_days, n_quantiles), np.nan)
@@ -22,10 +26,10 @@ def quintile_sort_returns(scores: np.ndarray, fwd_returns: np.ndarray,
         if valid.sum() < n_quantiles * 2:
             continue
         s_v = s[valid]; r_v = r[valid]
-        ranks = np.argsort(np.argsort(s_v))
+        ranks = average_ranks(s_v)
         n_v = ranks.shape[0]
         # Map rank to quantile in 0..n_quantiles-1
-        q = (ranks * n_quantiles // n_v).clip(max=n_quantiles - 1)
+        q = np.floor(ranks * n_quantiles / n_v).astype(int).clip(max=n_quantiles - 1)
         for k in range(n_quantiles):
             mask = (q == k)
             if mask.any():

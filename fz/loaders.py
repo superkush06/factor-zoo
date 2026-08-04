@@ -30,7 +30,9 @@ def universe_from_prices(
 ) -> Universe:
     """Assemble a `Universe` from a (n_days, n_stocks) price panel.
 
-    Returns are simple period-over-period pct changes (row 0 is zeros).
+    Returns are simple period-over-period pct changes; row 0 is NaN
+    (there is no prior price), matching `make_universe`'s contract. Factor
+    warm-up windows therefore see a missing value instead of a fake 0% day.
     Fundamental panels default to NaN (their factors then yield NaN scores).
     """
     prices = np.asarray(prices, dtype=float)
@@ -40,7 +42,7 @@ def universe_from_prices(
     if n_days < 2:
         raise ValueError("need at least 2 rows of prices to form returns")
 
-    returns = np.zeros_like(prices)
+    returns = np.full_like(prices, np.nan)
     returns[1:] = prices[1:] / prices[:-1] - 1.0
 
     def _panel(x):

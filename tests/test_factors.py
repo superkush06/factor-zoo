@@ -1,5 +1,7 @@
 """Factor characteristic tests."""
 
+import warnings
+
 import numpy as np
 
 from fz.factors import (
@@ -66,3 +68,14 @@ def test_quality_short_reversal_finite():
     assert np.isfinite(quality_roe(u)).all()
     s = short_reversal(u, window=5)
     assert np.isfinite(s[10:]).all()
+
+
+def test_warmup_rows_raise_no_runtime_warnings():
+    """All-NaN warm-up rows used to spew nanmean/nanstd RuntimeWarnings on
+    every factor call; they must be handled silently."""
+    u = make_universe(n_stocks=40, n_days=300, seed=0)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        momentum(u, lookback=100, skip=10)
+        low_vol(u, window=60)
+        short_reversal(u, window=5)
