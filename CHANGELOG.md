@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.5.4] - 2026-08-04
+
+### Fixed
+- **README said every number in the tour block is pinned by a test, and
+  nothing pinned any of them.** `pyproject.toml` sets `testpaths = ["tests"]`
+  with no `--doctest-glob`, so README.md was never collected, and three of the
+  block's outputs — `array([-3.28, 3.18, 2.9, 2.44, 3.5])`,
+  `array([-0.95, 7.22, 7.3, 6.48, 6.45])` and `res.n_periods` → 1247 — appear
+  nowhere under `tests/`. The nearest test, `tests/test_recovery.py`, runs a
+  different universe (300 × 1000, seed 11, `low_vol(window=120)`) and asserts
+  only `t > 2` / `|t| < 2`, so any of the printed values could have drifted
+  with CI green. `tests/test_readme_tour.py` now extracts both `pycon` blocks
+  and runs them as doctests — 14 examples and 6 — and diffs every line of
+  output against a live run. Retyping 1247 as 1248 and 7.22 as 7.23 fails the
+  suite; both passed before this commit. `--doctest-glob=*.md` on its own does
+  not do the job: doctest reads the closing fence into the last example's
+  expected output, and both blocks fail on that alone.
+- **"The injected premia (2.4–3.5 bp/day per unit z, roughly 6–9%/yr)"
+  described the recovered coefficients, not the injected ones.**
+  `DEFAULT_PREMIA` asks for 3, 3 and 4 bp/day per unit exposure for
+  value/quality/low_vol, and momentum's entry is a drift dispersion rather
+  than a per-unit-z premium at all; 2.44–3.50 is what Fama-MacBeth reads back
+  at `n_days=1500, seed=0`. The bullet says recovered now, and the annualised
+  range is the measured 6.1–8.8%/yr rather than a widened 6–9.
+- **"Sherman-Morrison gives Σ⁻¹ in four lines."** The closure in
+  `examples/alpha_handoff.py` that applies Σ⁻¹ is three statements; four is
+  the count only if the `def` line is algebra. README and that file's
+  docstring both say three, and name the closure.
+
+### Changed
+- "Sharpes near 4" is now the measured 3.6 to 5.1. The four sort Sharpes are
+  5.09, 4.14, 3.90 and 3.60, and only one of them is near 4.
+- "every row clears it" now gives the margin it is asserting: against a bar of
+  two standard errors the loaded column's worst is 6.45 and the placebo
+  column's worst is 1.39.
+
 ## [0.5.3] - 2026-08-03
 
 ### Fixed

@@ -86,7 +86,9 @@ array([-0.95,  7.22,  7.3 ,  6.48,  6.45])
 1247
 ```
 
-Each of those numbers is pinned by a test. Prices start at 100 and compound
+Each of those numbers is pinned by a test: `tests/test_readme_tour.py` runs
+both `pycon` blocks on this page as doctests and compares every line of output
+to a live run, character for character. Prices start at 100 and compound
 `returns` exactly, so day 0 has no return and all 300 entries are NaN.
 Momentum needs 252 rows of history before it emits anything. Each
 cross-section is z-scored *by date* — mean zero, unit standard deviation on
@@ -116,7 +118,7 @@ same momentum book because it compounds the daily mean instead:
 The larger number is the convention, not extra return; each label says which
 one it is.
 
-Sharpes near 4 are not a claim about markets. The injected premia are
+Sharpes of 3.6 to 5.1 are not a claim about markets. The injected premia are
 deliberately large (see [limitations](#limitations)) so that recovery is
 unambiguous at 1500 days. The column that matters is the last one: all five
 rungs of every ladder line up in order.
@@ -256,8 +258,9 @@ low_vol          6.45        0.95      pass
 
 The placebo column is not identically zero, and should not be: the four
 characteristics are correlated with each other, so switching one premium off
-leaves a little of the others behind. Two standard errors is the bar, and
-every row clears it.
+leaves a little of the others behind. Two standard errors is the bar. The
+loaded column clears it by a factor of three or more — 6.45 at its worst — and
+the placebo column does not reach it, 1.39 at its worst.
 
 ## Checked against something outside this repository
 
@@ -389,9 +392,10 @@ are point-in-time, but the leverage constant is not. Both books are scaled by
 the realised volatility of the whole backtest, which leaves Sharpe and the
 correlation alone and moves `ret %/yr` and `maxDD %` proportionally. Nothing
 in that file imports anything outside `fz`. The covariance is one market
-factor plus a diagonal, so Sherman-Morrison gives Σ⁻¹ in four lines and no
-300×300 solve is needed. It is deliberately the *minimum* optimiser, because
-sizing is not this repository's job.
+factor plus a diagonal, so Σ⁻¹ never has to be formed: applying it is the
+three-line `solve` closure in that file, and no 300×300 solve is needed. It is
+deliberately the *minimum* optimiser, because sizing is not this repository's
+job.
 
 In a real stack the handoff continues: μ and Σ go to constrained portfolio
 construction — the sibling **`portopt`** (Markowitz, Black-Litterman, risk
@@ -403,10 +407,12 @@ accident and a standard error that is not a fiction.
 
 - Recovering a premium here proves the **code** is right. It is not evidence
   that momentum, value, quality or low volatility pay in live markets.
-- The injected premia (2.4–3.5 bp/day per unit z, roughly 6–9%/yr) are an
-  order of magnitude larger than anything in CRSP. That is deliberate: it
-  makes recovery unambiguous at 1500 days. It is also why the Sharpes above
-  are so high.
+- The premia are deliberately large. The four in the design come back at
+  2.44–3.50 bp/day per unit z, or 6.1–8.8%/yr, an order of magnitude more than
+  anything in CRSP; what the generator was asked for is in `DEFAULT_PREMIA`,
+  and momentum's entry there is a drift dispersion rather than a per-unit-z
+  premium. That size is what makes recovery unambiguous at 1500 days, and it
+  is also why the Sharpes above are so high.
 - Sorts are equal-weighted, frictionless and rebalanced daily. No costs, no
   borrow, no capacity, no survivorship modelling, no sector neutralisation.
 - The regression is Fama-MacBeth on *characteristics*, not on estimated

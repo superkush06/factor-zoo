@@ -27,7 +27,7 @@ from .portfolio import (
 )
 from .universe import DEFAULT_PREMIA, Universe, make_universe
 
-__version__ = "0.5.3"
+__version__ = "0.5.4"
 __all__ = [
     "Universe", "make_universe", "DEFAULT_PREMIA",
     "universe_from_prices", "load_prices_csv",

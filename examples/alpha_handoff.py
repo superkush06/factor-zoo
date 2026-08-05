@@ -10,8 +10,8 @@ honest thing you can do with it.
     returns ->  one-factor risk model (trailing only) ->  Sigma_t
     mu, Sigma -> dollar-neutral mean-variance weights -> daily P&L
 
-The optimiser here is four lines of algebra, not a portfolio library: the
-covariance is one market factor plus a diagonal, so Sherman-Morrison gives
+The optimiser here is a three-line closure, not a portfolio library: the
+covariance is one market factor plus a diagonal, so Sherman-Morrison applies
 Sigma^-1 in closed form and the weights never need a 300x300 solve. A real
 stack replaces this step with constrained optimisation (sibling repo
 `portopt`) and hands the resulting book to a risk engine (`risk`). The point
