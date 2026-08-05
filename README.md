@@ -4,39 +4,40 @@
 [![python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-**Cross-sectional equity factors, run on a universe that knows the answer.**
+**Cross-sectional equity factors, measured on a universe whose answer is known.**
 
-A factor backtest that agrees with you is worth nothing until you can tell
-whether it agrees because the signal is real or because the code leaked. So
-this library ships its own ground truth. `make_universe` writes known premia
-into a synthetic panel, each premium flowing through the characteristic that
-is supposed to measure it, and the test suite demands that the pipeline read
-those premia back — and read back *nothing* when they are switched off.
+`fz` builds equity characteristics — momentum, value, size, quality, low
+volatility, short reversal — and prices them with daily quintile sorts,
+Fama-MacBeth regressions and rank information coefficients. The hard part is
+not the estimator; it is telling a real signal apart from a leak in the code.
+So `make_universe` writes known premia into a synthetic panel, each premium
+routed through the characteristic that measures it, and the test suite
+requires that the pipeline read those premia back — and read back *nothing*
+when they are switched off.
 
-Then, because a library that only checks itself agrees with its own
-mistakes, [`docs/validation.md`](docs/validation.md) checks the estimators
-against sixteen things written elsewhere: the sign of the momentum premium in
+A library that only checks itself will agree with its own mistakes, so
+[`docs/validation.md`](docs/validation.md) runs sixteen more checks against
+published results and closed forms: the sign of the momentum premium in
 Jegadeesh-Titman, of the value premium in Fama-French, of the volatility
 effect in Ang et al., and the closed forms for a Gaussian quintile mean, a
 bivariate-normal Spearman correlation, a Bartlett long-run variance and the
-Shanken correction. One row disagrees, and says why.
+Shanken correction. Fifteen agree. One does not, and the table says why.
 
-What is left over is a small, careful cross-sectional toolkit: daily
-portfolio sorts, Fama-MacBeth regressions with Newey-West standard errors,
-rank information coefficients. Pure NumPy, stdlib CSV parsing, no pandas.
-Point `load_prices_csv` at your own price panel and none of the machinery
-changes.
+The toolkit itself is small: daily portfolio sorts, Fama-MacBeth regressions
+with Newey-West standard errors, rank information coefficients. Pure NumPy,
+stdlib CSV parsing, no pandas. Point `load_prices_csv` at your own price
+panel and nothing else changes.
 
 ![recovery](docs/recovery.png)
 
 Left: mean forward return by quintile, annualised. Every characteristic's
-sort is monotone from Q1 to Q5 — the weakest thing you can ask of a factor
-and the first thing that breaks when a pipeline is wired wrong. Middle: the
-same Q5 − Q1 spread compounded on a log scale, where a straight line means a
-stable Sharpe rather than one lucky year. Right: the Fama-MacBeth premium in
-basis points per day, estimated on the universe as generated (filled) and on
-a placebo universe with that single premium set to zero (hollow). The placebo
-estimates collapse into the noise. That gap is the repository.
+sort is monotone from Q1 to Q5. That is the weakest check on a factor and the
+first one to break when a pipeline is wired wrong. Middle: the same Q5 − Q1
+spread compounded on a log scale, where a straight line means a stable Sharpe
+rather than one lucky year. Right: the Fama-MacBeth premium in basis points
+per day, estimated on the universe as generated (filled) and on a placebo
+universe with that single premium set to zero (hollow). The loaded estimates
+sit well clear of zero; the placebo estimates sit in the noise.
 
 ## Quickstart
 
@@ -85,12 +86,12 @@ array([-0.95,  7.22,  7.3 ,  6.48,  6.45])
 1247
 ```
 
-Every one of those numbers is a contract. Prices start at 100 and compound
+Each of those numbers is pinned by a test. Prices start at 100 and compound
 `returns` exactly, so day 0 has no return and all 300 entries are NaN.
 Momentum needs 252 rows of history before it emits anything. Each
 cross-section is z-scored *by date* — mean zero, unit standard deviation on
 day 600, never pooled across the panel — which is what makes the score
-point-in-time. And 1247 of the 1500 dates survive warm-up to contribute a
+point-in-time. 1247 of the 1500 dates survive warm-up and contribute a
 cross-sectional regression.
 
 ## What the pipeline says about this universe
@@ -111,12 +112,12 @@ return times 252. `spread` is `Q5 %/yr − Q1 %/yr`, which by linearity is the
 long-short leg's own mean daily return times 252.
 [`docs/validation.md`](docs/validation.md) row 1 quotes +48.3%/yr for that
 same momentum book because it compounds the daily mean instead:
-(1 + 0.3943/252)²⁵² − 1 = 48.3%. One book, one daily mean, two conventions —
-the larger number is the convention talking, not extra return, and the label
-says which one you are looking at.
+(1 + 0.3943/252)²⁵² − 1 = 48.3%. Same book, same daily mean, two conventions.
+The larger number is the convention, not extra return; each label says which
+one it is.
 
-Sharpes near 4 are not a claim about markets; the injected premia are
-deliberately generous (see [limitations](#limitations)) so that recovery is
+Sharpes near 4 are not a claim about markets. The injected premia are
+deliberately large (see [limitations](#limitations)) so that recovery is
 unambiguous at 1500 days. The column that matters is the last one: all five
 rungs of every ladder line up in order.
 
@@ -136,10 +137,10 @@ lvol           0.000350     0.000054      6.45
 mean daily R^2: 0.0239
 ```
 
-An R² of 2.4% per day is what a cross-sectional return model actually looks
-like: the premium is a whisper on top of noise, and it only becomes a t-stat
-of 7 after 1247 repetitions. The intercept is the equal-weighted market and
-is indistinguishable from zero, as it must be once the characteristics are
+A mean daily R² of 2.4% is normal for a cross-sectional return model. On any
+one day the premium is small next to the noise; it only reaches a t-stat of 7
+after 1247 cross-sections. The intercept is the equal-weighted market and is
+indistinguishable from zero, as it must be once the characteristics are
 demeaned by date.
 
 `python3 examples/momentum_ic.py` — per-date Spearman
@@ -156,13 +157,12 @@ short_reversal    -0.0065   -0.093   45.3%  -0.031  +0.055
 ```
 
 The bottom two rows are the useful ones. Nothing in this universe pays for
-short reversal, and its IC duly sits near zero. Size is more interesting: it
-*is* priced in the generator, but the score is built from market cap, which
-is shares times price, so `-log(mcap)` is part characteristic and part
-accumulated return. In a universe with persistent momentum that contamination
-runs the wrong way — the size score correlates −0.46 with the momentum score
-— and drags the IC negative. A characteristic is only as clean as the
-quantity it is measured from.
+short reversal, and its IC sits near zero. Size is priced in the generator,
+but the score is built from market cap, which is shares times price, so
+`-log(mcap)` is part characteristic and part accumulated return. In a
+universe with persistent momentum that contamination runs the wrong way — the
+size score correlates −0.46 with the momentum score — and drags the IC
+negative.
 
 ## Inference when returns overlap
 
@@ -173,9 +173,9 @@ Fama-MacBeth t-stat on momentum climbs from 7.2 to 61.2 without a single new
 observation arriving. Consecutive cross-sections now share 62 of their 63
 days, so the daily slope series is heavily autocorrelated and the iid
 standard error counts the same evidence over and over. `hac_lags` applies a
-Bartlett-kernel Newey-West correction to that series, and across every factor
-and every horizon plotted the corrected t-stat stays between 6.5 and 10.2 —
-roughly the truth.
+Bartlett-kernel Newey-West correction to that series. Across every factor and
+every horizon plotted the corrected t-stat stays between 6.45 and 10.19,
+close to the 6.45–7.30 the non-overlapping h = 1 fit gives.
 
 The right panel is the overstatement itself. It grows like √h *if the kernel
 does not taper*, and Bartlett's does: at lag length h−1 the exact inflation
@@ -199,8 +199,8 @@ qual           0.005189     28.39      7.53        3.77x
 lvol           0.007050     28.94      7.93        3.65x
 ```
 
-The point estimates are untouched — overlap is an inference problem, not an
-estimation one — and one keyword is the whole difference:
+The point estimates are untouched: overlap is an inference problem, not an
+estimation one. One keyword is the whole difference:
 
 ```python
 fama_macbeth(design, forward_returns(u.returns, horizon=21), hac_lags=20)
@@ -214,12 +214,12 @@ a closed form rather than eyeballed.
 
 ![lookahead](docs/lookahead.png)
 
-Winsorisation is where look-ahead sneaks into a factor library. Clip each
-score against quantiles of the whole panel and day *t* is quietly using the
-distribution of every day after it — visible on the left as the clipped tails
-sliding by up to 0.83 z-units the moment you re-run on a shorter history.
-Clip per date and the same score comes out bit-identical no matter how much
-of the future you delete: the flat line on the right sits at exactly zero.
+Winsorisation is where look-ahead gets into a factor library. Clip each score
+against quantiles of the whole panel and day *t* is using the distribution of
+every day after it. On the left, that shows up as clipped tails moving by up
+to 0.83 z-units when the same code is re-run on a shorter history. Clip per
+date instead and the score is bit-identical no matter how much of the future
+you delete: the flat line on the right sits at exactly zero.
 
 That invariant is a test, not a comment. `tests/test_no_lookahead.py` computes
 every factor on a truncated universe and asserts the result equals the head of
@@ -241,8 +241,7 @@ u_placebo = make_universe(n_stocks=300, n_days=1000, seed=11,
 ```
 
 Because `premia` only scales already-drawn random numbers, the placebo is the
-same universe with one term removed rather than a fresh sample — a clean
-counterfactual instead of a second roll of the dice.
+same universe with one term removed, not a fresh sample.
 
 `python3 examples/recovery_matrix.py` runs the same comparison
 at the size the README uses, and prints it:
@@ -258,18 +257,17 @@ low_vol          6.45        0.95      pass
 The placebo column is not identically zero, and should not be: the four
 characteristics are correlated with each other, so switching one premium off
 leaves a little of the others behind. Two standard errors is the bar, and
-every row clears it comfortably.
+every row clears it.
 
 ## Checked against something outside this repository
 
-Everything above is the library checking itself, and a library that only ever
-checks itself is a library that agrees with its own mistakes. So there is a
-second suite that measures `fz` against published results and against closed
-forms — sixteen claims, each with a source that was not written here.
+Everything above is the library checking itself. A second suite measures `fz`
+against published results and against closed forms — sixteen claims, each
+with a source stated in the table.
 
 ![calibration](docs/calibration.png)
 
-The centrepiece is calibration. Recovery asks whether a premium shows up with
+Calibration is the main check. Recovery asks whether a premium shows up with
 t > 2; calibration asks whether the estimate lands where it should and
 whether the interval around it means what it says. On panels where the
 characteristic is *observed exactly* — no proxy, no attenuation — a premium
@@ -278,7 +276,7 @@ errors from the truth, a premium of zero comes back 0.27 standard errors from
 zero, and across 300 independent panels the coverage of the nominal 95%
 interval measures 0.953 (286/300).
 
-The rest of the table is closed forms, and they are unforgiving:
+The rest of the table is closed forms:
 
 | what | ours | reference |
 |---|---|---|
@@ -289,23 +287,22 @@ The rest of the table is closed forms, and they are unforgiving:
 | Shanken inflation with estimated betas | 1.1298 | 1.1317 |
 | the same with observed regressors | 1.0103 | 1.0000 |
 
-And one row disagrees. The literature says small stocks beat large ones;
-`size_factor` in this universe says the opposite, and the honest reason is in
-the IC table above — market cap is shares times price, so the characteristic
-is part signal and part accumulated return. That row is in the table with the
-explanation attached rather than quietly dropped.
+One row disagrees. The literature says small stocks beat large ones;
+`size_factor` in this universe says the opposite, for the reason in the IC
+table above — market cap is shares times price, so the characteristic is part
+signal and part accumulated return. That row stays in the table, with the
+explanation attached.
 
-`python3 examples/validate.py` prints every cell of that page — including the
+`python3 examples/validate.py` prints every cell of that page, including the
 `agrees` column, which is computed from each row's own measured sign and
 t-statistic rather than written down. [`docs/validation.md`](docs/validation.md)
 is the writeup, including what is *not* validated.
 `tests/test_validation.py` runs the same code under pytest and diffs the
-published tables against the live run cell for cell, so neither a verdict nor
-a number can drift away from the library without CI going red — and *both*
-columns of the six rows excerpted above, plus the calibration figures in the
-paragraph before them, are checked against that same run. The reference
-column is as computed as the rest: 1.1317 comes out of `shanken_factor`,
-0.01910 out of the Spearman identity.
+published tables against the live run cell for cell, so no verdict and no
+number can drift without CI going red. Both columns of the six rows above,
+and the calibration figures in the paragraph before them, are checked against
+that same run. The reference column is computed too: 1.1317 comes out of
+`shanken_factor`, 0.01910 out of the Spearman identity.
 
 ## What's inside
 
@@ -332,18 +329,19 @@ python3 examples/make_figures.py            # all four PNGs in docs/
 python3 examples/make_figures.py recovery   # or just one
 ```
 
-The font family and the PNG metadata are pinned in that script, so a re-run
-on the matplotlib the committed PNGs were drawn with (3.11) reproduces them
-byte for byte. Across builds it does not, and no pinning inside the script can
-make it: on matplotlib 3.9 the same code draws the same content, but the
-layout rounds three of the four canvases to 459 pixels tall instead of 460 and
-the text rasterises differently. The figures regenerate from the committed
-script; they are not byte-identical across matplotlib versions.
+The font family and the PNG metadata are pinned in that script, so re-running
+on matplotlib 3.11 — the version the committed PNGs were drawn with —
+reproduces them byte for byte. Across matplotlib versions it does not, and no
+pinning inside the script can fix that: on matplotlib 3.9 the same code draws
+the same content, but the layout rounds three of the four canvases to 459
+pixels tall instead of 460 and the text rasterises differently. The figures
+always regenerate from the committed script; they are only byte-identical on
+the same matplotlib.
 
 ## Your own data
 
-Price-driven factors need nothing but prices. Fundamentals are optional and
-degrade to NaN rather than exploding.
+Price-driven factors need only prices. Fundamentals are optional: leave them
+out and the factors that need them return all-NaN instead of failing.
 
 ```pycon
 >>> import numpy as np
@@ -359,12 +357,12 @@ np.True_
 
 ## Where this sits
 
-A cross-sectional factor library produces exactly one thing the rest of a
-stack consumes: a vector of expected returns, dated. Every sort, t-stat and
-placebo above exists to decide whether that vector is worth believing.
-`examples/alpha_handoff.py` builds it and then does the smallest honest thing
-you can do with it — re-estimate the premia on an expanding window that ends
-at each rebalance date, turn the live scores into μ, estimate a one-factor Σ
+A cross-sectional factor library produces one thing the rest of a stack
+consumes: a dated vector of expected returns. Every sort, t-stat and placebo
+above exists to decide whether that vector is worth believing.
+`examples/alpha_handoff.py` builds it and then does the simplest thing you
+can do with it: re-estimate the premia on an expanding window that ends at
+each rebalance date, turn the live scores into μ, estimate a one-factor Σ
 from a trailing window, and solve for dollar-neutral mean-variance weights.
 
 ```
@@ -385,32 +383,30 @@ and maxDD % are ex-post normalised; Sharpe and the correlation are scale-invaria
 ```
 
 Same four signals, same vol target, two ways of sizing the positions: risk
-weighting buys a third more Sharpe and, at that common risk level, roughly
-half the drawdown. Read that last comparison for what it is: the signal and
-the risk model are point-in-time, but the leverage constant is not — both
-books are scaled by the realised volatility of the whole backtest, which
-leaves Sharpe and the correlation alone and moves `ret %/yr` and `maxDD %`
-proportionally. Nothing in that
-file imports anything outside `fz` — the covariance is one market factor plus
-a diagonal, so Sherman-Morrison gives Σ⁻¹ in four lines and no 300×300 solve
-is needed. It is deliberately the *minimum* optimiser, because sizing is not
-this repository's job.
+weighting buys a third more Sharpe and, at that common risk level, about half
+the drawdown. One caveat on that comparison: the signal and the risk model
+are point-in-time, but the leverage constant is not. Both books are scaled by
+the realised volatility of the whole backtest, which leaves Sharpe and the
+correlation alone and moves `ret %/yr` and `maxDD %` proportionally. Nothing
+in that file imports anything outside `fz`. The covariance is one market
+factor plus a diagonal, so Sherman-Morrison gives Σ⁻¹ in four lines and no
+300×300 solve is needed. It is deliberately the *minimum* optimiser, because
+sizing is not this repository's job.
 
 In a real stack the handoff continues: μ and Σ go to constrained portfolio
 construction — the sibling **`portopt`** (Markowitz, Black-Litterman, risk
 parity) — and the resulting book goes to **`risk`** (VaR, expected shortfall,
 stress). What this library owes them is a signal whose sign is not an
-accident and a standard error that is not a fiction. That is what the rest of
-this page is about.
+accident and a standard error that is not a fiction.
 
 ## Limitations
 
 - Recovering a premium here proves the **code** is right. It is not evidence
   that momentum, value, quality or low volatility pay in live markets.
 - The injected premia (2.4–3.5 bp/day per unit z, roughly 6–9%/yr) are an
-  order of magnitude larger than anything in CRSP. That is deliberate — it
-  makes recovery unambiguous at 1500 days — and it is why the Sharpes above
-  are absurd.
+  order of magnitude larger than anything in CRSP. That is deliberate: it
+  makes recovery unambiguous at 1500 days. It is also why the Sharpes above
+  are so high.
 - Sorts are equal-weighted, frictionless and rebalanced daily. No costs, no
   borrow, no capacity, no survivorship modelling, no sector neutralisation.
 - The regression is Fama-MacBeth on *characteristics*, not on estimated
@@ -433,7 +429,7 @@ this page is about.
 
 ## Theory
 
-[`docs/theory.md`](docs/theory.md) carries the derivations: the Fama-MacBeth
+[`docs/theory.md`](docs/theory.md) has the derivations: the Fama-MacBeth
 estimator and its standard error, the Bartlett/Newey-West long-run variance
 and the exact overlap inflation it implies, Shanken's errors-in-variables
 multiplier and why characteristics escape it, what identifiability means for
@@ -442,7 +438,7 @@ to keep premia arithmetic, and pointers to the original factor papers.
 
 [`docs/validation.md`](docs/validation.md) is the other half: the same
 estimators measured against sources outside this repository, with the one
-disagreement written up rather than buried.
+disagreement written up rather than dropped.
 
 ## Roadmap
 
