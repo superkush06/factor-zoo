@@ -3,6 +3,17 @@
 ## [0.5.4] - 2026-08-04
 
 ### Fixed
+- **The tour block printed a number that is not the same on two machines.**
+  `float(np.nanmean(z[600]))` was quoted as `-7.697546304067752e-17`. Those
+  300 z-scores sum to about −2e−14, so their mean is cancellation residue and
+  its digits are an artifact of summation order: the x86-64 CI runner prints
+  `+1.4802973661668754e-17` for the same expression, and `math.fsum` over the
+  same values gives `-8.463715839290842e-17` on the machine that produced the
+  original. Nothing caught it before because nothing ran the block. The
+  example rounds the mean to 12 places now and the prose says why; the
+  standard deviation beside it is left at full precision, because it is a
+  positive-term reduction with no cancellation and both machines agree on all
+  sixteen digits.
 - **README said every number in the tour block is pinned by a test, and
   nothing pinned any of them.** `pyproject.toml` sets `testpaths = ["tests"]`
   with no `--doctest-glob`, so README.md was never collected, and three of the

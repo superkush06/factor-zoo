@@ -71,8 +71,8 @@ print(res.t_stats)
 >>> z = momentum(u, lookback=252, skip=21)
 >>> int(np.isnan(z[:, 0]).sum())
 252
->>> float(np.nanmean(z[600])), float(np.nanstd(z[600]))
-(-7.697546304067752e-17, 0.9999999999975775)
+>>> abs(round(float(np.nanmean(z[600])), 12)), float(np.nanstd(z[600]))
+(0.0, 0.9999999999975775)
 >>> fwd = forward_returns(u.returns, horizon=1)
 >>> np.allclose(fwd[:-1], u.returns[1:])
 True
@@ -95,6 +95,15 @@ cross-section is z-scored *by date* — mean zero, unit standard deviation on
 day 600, never pooled across the panel — which is what makes the score
 point-in-time. 1247 of the 1500 dates survive warm-up and contribute a
 cross-sectional regression.
+
+That mean is rounded because its digits do not reproduce, not for legibility.
+The 300 z-scores of day 600 sum to about −2e−14, so their mean is cancellation
+residue rather than a measurement: −7.7e−17 on the arm64 machine this page was
+written on, +1.5e−17 on the x86-64 CI runner, and `math.fsum` over the same
+300 values gives a third answer again. The standard deviation next to it is
+not noise — it misses 1 by 2.4e−12 because `_standardize` divides by
+`sd + 1e-12` — so it is quoted whole, and both machines print the same sixteen
+digits of it.
 
 ## What the pipeline says about this universe
 
