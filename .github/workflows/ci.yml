@@ -3,14 +3,20 @@ name: ci
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
     branches: [main]
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # macOS is not thoroughness for its own sake: this library's own CHANGELOG
+    # records a reduction-order divergence between arm64 and x86-64, so the
+    # matrix covers both architectures.
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest]
         python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
@@ -22,12 +28,4 @@ jobs:
       - name: Lint
         run: ruff check .
       - name: Test
-        run: |
-          set +e
-          pytest -q
-          code=$?
-          if [ "$code" = "5" ]; then
-            echo "no tests collected yet (bootstrap phase)"
-            exit 0
-          fi
-          exit $code
+        run: pytest -q

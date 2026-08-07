@@ -16,6 +16,15 @@ def quintile_sort_returns(scores: np.ndarray, fwd_returns: np.ndarray,
     Quantile 0 is bottom (smallest score), quantile n-1 is top.
     Tied scores share an average rank, so quantile membership does not
     depend on ticker order (winsorised scores always tie in the tails).
+
+    One date, four names, two buckets: the bottom half earns (1% + 2%) / 2
+    and the top half (3% + 6%) / 2.
+
+    >>> import numpy as np
+    >>> scores = np.array([[1.0, 2.0, 3.0, 4.0]])
+    >>> fwd = np.array([[0.01, 0.02, 0.03, 0.06]])
+    >>> quintile_sort_returns(scores, fwd, n_quantiles=2)
+    array([[0.015, 0.045]])
     """
     n_days, n_stocks = scores.shape
     out = np.full((n_days, n_quantiles), np.nan)
@@ -38,12 +47,27 @@ def quintile_sort_returns(scores: np.ndarray, fwd_returns: np.ndarray,
 
 
 def long_short_return(quintile_returns: np.ndarray) -> np.ndarray:
-    """Top quantile minus bottom quantile per row."""
+    """Top quantile minus bottom quantile per row.
+
+    >>> import numpy as np
+    >>> long_short_return(np.array([[0.015, 0.045]]))
+    array([0.03])
+    """
     return quintile_returns[:, -1] - quintile_returns[:, 0]
 
 
 def cumulative(returns_1d: np.ndarray) -> np.ndarray:
-    """Cumulative geometric return path (1+r1)(1+r2)... - 1."""
+    """Cumulative geometric return path (1+r1)(1+r2)... - 1.
+
+    NaN days are held flat rather than dropped, so the path stays the same
+    length as the input.
+
+    >>> import numpy as np
+    >>> np.round(cumulative(np.array([0.1, -0.05, 0.02])), 6)
+    array([0.1   , 0.045 , 0.0659])
+    >>> np.round(cumulative(np.array([0.1, np.nan, 0.02])), 6)
+    array([0.1  , 0.1  , 0.122])
+    """
     out = np.full_like(returns_1d, np.nan)
     cum = 1.0
     for t, r in enumerate(returns_1d):
@@ -56,7 +80,16 @@ def cumulative(returns_1d: np.ndarray) -> np.ndarray:
 
 
 def sharpe_annualised(returns_1d: np.ndarray, freq: int = 252) -> float:
-    """Annualised Sharpe ratio from daily returns."""
+    """Annualised Sharpe ratio from daily returns.
+
+    Mean times `freq` over standard deviation (ddof=1) times sqrt(freq); NaN
+    days are dropped, and fewer than two observations give NaN rather than a
+    number nobody should trust.
+
+    >>> import numpy as np
+    >>> round(sharpe_annualised(np.array([0.001, -0.002, 0.003, 0.0005])), 4)
+    4.8245
+    """
     r = returns_1d[~np.isnan(returns_1d)]
     if r.size < 2:
         return float("nan")

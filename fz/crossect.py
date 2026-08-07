@@ -65,6 +65,19 @@ def newey_west_var(x: np.ndarray, lags: int = 0) -> float:
     The T-1 divisor means `lags=0` returns the ordinary sample variance, so
     the classic Fama-MacBeth t-stat is the L=0 special case rather than a
     separate code path. The Bartlett weights guarantee S >= 0.
+
+    At `lags=0` it is exactly `np.var(x, ddof=1)`:
+
+    >>> import numpy as np
+    >>> round(newey_west_var(np.array([1.0, 2.0, 3.0, 4.0]), 0), 4)
+    1.6667
+
+    A positively autocorrelated series has a long-run variance larger than
+    its sample variance -- which is the entire reason the correction exists:
+
+    >>> x = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+    >>> round(newey_west_var(x, 0), 4), round(newey_west_var(x, 3), 4)
+    (6.0, 13.1786)
     """
     x = np.asarray(x, dtype=float)
     x = x[~np.isnan(x)]
@@ -144,6 +157,17 @@ def fama_macbeth(scores_list: list[np.ndarray], fwd_returns: np.ndarray,
     one-day-ahead returns and *wrong* for overlapping horizons: with h-day
     forward returns, consecutive slopes share h-1 days of data, so set
     `hac_lags=h-1` to stop the t-stat from counting the same evidence twice.
+
+    On a panel where the return *is* 2 bp per unit of score, with no noise,
+    the estimator returns exactly that and nothing for the intercept:
+
+    >>> import numpy as np
+    >>> score = np.tile(np.array([-1.0, 0.0, 1.0, 2.0]), (30, 1))
+    >>> res = fama_macbeth([score], 0.002 * score)
+    >>> np.round(res.coefficients, 6), res.n_periods
+    (array([0.   , 0.002]), 30)
+    >>> float(np.round(res.daily_r2[0], 6))
+    1.0
     """
     n_days, n_stocks = scores_list[0].shape
     K = len(scores_list)
@@ -180,6 +204,12 @@ def average_ranks(x: np.ndarray) -> np.ndarray:
     does not depend on input order. Winsorised scores are guaranteed to tie
     in the clipped tails -- exactly where long-short portfolios are formed --
     which makes tie handling load-bearing rather than cosmetic.
+
+    The two 30s span ordinal ranks 2 and 3, so both get 2.5:
+
+    >>> import numpy as np
+    >>> average_ranks(np.array([10.0, 30.0, 20.0, 30.0]))
+    array([0. , 2.5, 1. , 2.5])
     """
     x = np.asarray(x, dtype=float)
     order = np.argsort(x, kind="stable")
@@ -195,10 +225,22 @@ def average_ranks(x: np.ndarray) -> np.ndarray:
     return ranks
 
 
-def rank_information_coefficient(scores: np.ndarray, fwd_returns: np.ndarray):
+def rank_information_coefficient(scores: np.ndarray,
+                                 fwd_returns: np.ndarray) -> np.ndarray:
     """Per-day Spearman correlation between score and forward return.
 
-    Returns (n_days,) IC series. NaN if too few valid points.
+    Returns (n_days,) IC series. NaN if too few valid points (fewer than 20
+    names with both a score and a return).
+
+    A perfect ranking scores +1 and its reverse -1, which is the sanity
+    check the sign convention hangs on:
+
+    >>> import numpy as np
+    >>> s = np.tile(np.arange(24.0), (2, 1))
+    >>> rank_information_coefficient(s, np.vstack([s[0], -s[0]]))
+    array([ 1., -1.])
+    >>> float(np.isnan(rank_information_coefficient(s[:, :19], s[:, :19])[0]))
+    1.0
     """
     n_days = scores.shape[0]
     out = np.full(n_days, np.nan)
@@ -223,6 +265,15 @@ def rolling_ic(scores: np.ndarray, fwd_returns: np.ndarray,
     A factor's per-day IC is noisy; the rolling average is what you actually
     look at to judge whether the signal is alive or decaying over time.
     NaN until enough non-NaN daily ICs accumulate in the window.
+
+    Five days whose daily ICs are +1, +1, -1, -1, +1; a two-day trailing
+    mean turns that into the run of zeros where the signal flips:
+
+    >>> import numpy as np
+    >>> s = np.tile(np.arange(24.0), (5, 1))
+    >>> fwd = s * np.array([1.0, 1.0, -1.0, -1.0, 1.0])[:, None]
+    >>> rolling_ic(s, fwd, window=2)
+    array([ 1.,  1.,  0., -1.,  0.])
     """
     ic = rank_information_coefficient(scores, fwd_returns)
     out = np.full_like(ic, np.nan)

@@ -10,7 +10,15 @@ authors = [{name = "superkush06"}]
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
-dependencies = ["numpy>=1.24"]
+# Upper bound is deliberate, not superstition: every number this library
+# publishes is a floating-point reduction, and reduction order is not part of
+# NumPy's API contract. 2.x is what CI runs; 3.x is untested here.
+dependencies = ["numpy>=1.24,<3"]
+
+[project.urls]
+Homepage = "https://github.com/superkush06/factor-zoo"
+Source = "https://github.com/superkush06/factor-zoo"
+Changelog = "https://github.com/superkush06/factor-zoo/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = ["pytest>=7", "ruff>=0.5"]
@@ -20,8 +28,11 @@ plot = ["matplotlib>=3.7"]
 include = ["fz*"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "-ra -q"
+# `fz` is a testpath because the docstring examples are run as doctests: an
+# example printed in `help()` or in docs/api.md is a claim, and claims here
+# are pinned. Same guarantee README's pycon blocks already have.
+testpaths = ["tests", "fz"]
+addopts = "-ra -q --doctest-modules"
 
 [tool.ruff]
 line-length = 100

@@ -78,6 +78,24 @@ def make_universe(n_stocks: int = 200, n_days: int = 1260, seed: int = 0,
     Contract: `returns` are simple returns with `returns[0] = NaN` (no
     prior price); `prices` start at 100.0 and compound `returns` exactly,
     so `prices[1:] / prices[:-1] - 1 == returns[1:]`.
+
+    >>> import numpy as np
+    >>> u = make_universe(n_stocks=50, n_days=100, seed=0)
+    >>> u.returns.shape, float(u.prices[0, 0]), bool(np.isnan(u.returns[0, 0]))
+    ((100, 50), 100.0, True)
+    >>> bool(np.allclose(u.prices[1:] / u.prices[:-1] - 1.0, u.returns[1:]))
+    True
+
+    The seed is the whole panel, so a re-run is the same universe:
+
+    >>> bool(np.array_equal(u.prices, make_universe(50, 100, seed=0).prices))
+    True
+    >>> sorted(DEFAULT_PREMIA)
+    ['low_vol', 'momentum', 'quality', 'size', 'value']
+    >>> make_universe(50, 100, seed=0, premia={"nope": 0.0})
+    Traceback (most recent call last):
+        ...
+    ValueError: unknown premia keys: ['nope']
     """
     rng = np.random.default_rng(seed)
     lam = dict(DEFAULT_PREMIA)

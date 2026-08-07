@@ -34,6 +34,16 @@ def universe_from_prices(
     (there is no prior price), matching `make_universe`'s contract. Factor
     warm-up windows therefore see a missing value instead of a fake 0% day.
     Fundamental panels default to NaN (their factors then yield NaN scores).
+
+    >>> import numpy as np
+    >>> prices = np.array([[100.0, 50.0], [101.0, 49.5], [102.0, 49.5]])
+    >>> u = universe_from_prices(prices, tickers=["AAA", "BBB"])
+    >>> np.round(u.returns, 4)
+    array([[    nan,     nan],
+           [ 0.01  , -0.01  ],
+           [ 0.0099,  0.    ]])
+    >>> u.tickers, bool(np.all(np.isnan(u.book_value)))
+    (['AAA', 'BBB'], True)
     """
     prices = np.asarray(prices, dtype=float)
     if prices.ndim != 2:

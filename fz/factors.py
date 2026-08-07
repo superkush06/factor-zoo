@@ -46,6 +46,19 @@ def momentum(u: Universe, lookback: int = 252, skip: int = 21) -> np.ndarray:
     """12m-minus-1m momentum (price-driven).
 
     Returns shape (n_days, n_stocks); first `lookback` rows are NaN.
+
+    Four names on constant log-drifts of 0, +1%, +2% and -1% a day: the
+    score orders them by drift, and the winsorised tails keep the extremes
+    from running away.
+
+    >>> import numpy as np
+    >>> from fz import universe_from_prices
+    >>> drift = np.array([0.0, 0.01, 0.02, -0.01])
+    >>> u = universe_from_prices(100.0 * np.exp(np.outer(np.arange(10.0), drift)))
+    >>> np.round(momentum(u, lookback=5, skip=1)[-1], 3)
+    array([-0.455,  0.455,  1.339, -1.339])
+    >>> int(np.isnan(momentum(u, lookback=5, skip=1)[:, 0]).sum())
+    5
     """
     log_p = np.log(u.prices)
     n_days = log_p.shape[0]
@@ -56,7 +69,19 @@ def momentum(u: Universe, lookback: int = 252, skip: int = 21) -> np.ndarray:
 
 
 def short_reversal(u: Universe, window: int = 5) -> np.ndarray:
-    """1-week mean-reversion: high recent return -> low expected next-day return."""
+    """1-week mean-reversion: high recent return -> low expected next-day return.
+
+    Two names, and over the last two days the first one is down 3% while the
+    second is up 5%. The loser scores high, which is the whole sign
+    convention:
+
+    >>> import numpy as np
+    >>> from fz import universe_from_prices
+    >>> r = np.array([[0.0, 0.0], [0.05, -0.05], [0.01, 0.01], [-0.04, 0.04]])
+    >>> u = universe_from_prices(100.0 * np.cumprod(1.0 + r, axis=0))
+    >>> np.round(short_reversal(u, window=2)[-1], 3)
+    array([ 1., -1.])
+    """
     n_days, n_stocks = u.returns.shape
     raw = np.full((n_days, n_stocks), np.nan)
     # nancumsum: day 0's return is NaN by contract (no prior price). It never
@@ -69,25 +94,78 @@ def short_reversal(u: Universe, window: int = 5) -> np.ndarray:
 
 
 def value_btm(u: Universe) -> np.ndarray:
-    """Book-to-market ratio (higher -> "value"). Cross-sectionally z-scored."""
+    """Book-to-market ratio (higher -> "value"). Cross-sectionally z-scored.
+
+    Four names on the same book value and market caps of 1x, 2x, 4x, 8x, so
+    book-to-market halves along the row and the cheapest name scores highest:
+
+    >>> import numpy as np
+    >>> from fz import universe_from_prices
+    >>> mcap = 1e9 * np.array([[1.0, 2.0, 4.0, 8.0]] * 3)
+    >>> u = universe_from_prices(np.full((3, 4), 100.0), market_cap=mcap,
+    ...                          book_value=np.full((3, 4), 5e8))
+    >>> np.round(value_btm(u)[0], 3)
+    array([ 1.339,  0.455, -0.455, -1.339])
+
+    Supply no book values and the score is NaN rather than an error, so a
+    price-only panel still runs the price-driven factors:
+
+    >>> bool(np.all(np.isnan(value_btm(universe_from_prices(np.full((3, 4), 100.0))))))
+    True
+    """
     raw = u.book_value / (u.market_cap + 1e-12)
     return _standardize(_winsorize(np.log(np.maximum(raw, 1e-12))))
 
 
 def size_factor(u: Universe) -> np.ndarray:
-    """Smaller cap -> larger 'size factor' exposure (SMB convention)."""
+    """Smaller cap -> larger 'size factor' exposure (SMB convention).
+
+    >>> import numpy as np
+    >>> from fz import universe_from_prices
+    >>> mcap = 1e9 * np.array([[1.0, 2.0, 4.0, 8.0]] * 3)
+    >>> u = universe_from_prices(np.full((3, 4), 100.0), market_cap=mcap)
+    >>> np.round(size_factor(u)[0], 3)
+    array([ 1.339,  0.455, -0.455, -1.339])
+
+    Market cap is shares times price, so on a real panel this score carries
+    accumulated return as well as size -- see the IC table in README.
+    """
     raw = -np.log(u.market_cap + 1e-12)
     return _standardize(_winsorize(raw))
 
 
 def quality_roe(u: Universe) -> np.ndarray:
-    """Return-on-equity proxy: earnings / book."""
+    """Return-on-equity proxy: earnings / book.
+
+    Four names on the same book and ROEs of 2%, 4%, 6%, 8%:
+
+    >>> import numpy as np
+    >>> from fz import universe_from_prices
+    >>> book = np.full((3, 4), 5e8)
+    >>> u = universe_from_prices(np.full((3, 4), 100.0), book_value=book,
+    ...                          earnings=book * np.array([0.02, 0.04, 0.06, 0.08]))
+    >>> np.round(quality_roe(u)[0], 3)
+    array([-1.339, -0.455,  0.455,  1.339])
+    """
     raw = u.earnings / (u.book_value + 1e-12)
     return _standardize(_winsorize(raw))
 
 
 def low_vol(u: Universe, window: int = 60) -> np.ndarray:
-    """Negative trailing standard deviation: low-vol -> high exposure."""
+    """Negative trailing standard deviation: low-vol -> high exposure.
+
+    Three names alternating up and down at amplitudes 1%, 3% and 0.5%: the
+    quietest one scores highest, the wildest lowest.
+
+    >>> import numpy as np
+    >>> from fz import universe_from_prices
+    >>> flip = (-1.0) ** np.arange(9.0)
+    >>> r = flip[:, None] * np.array([0.01, 0.03, 0.005])
+    >>> u = universe_from_prices(100.0 * np.cumprod(1.0 + r, axis=0),
+    ...                          tickers=["CALM", "WILD", "QUIET"])
+    >>> np.round(low_vol(u, window=4)[-1], 3)
+    array([ 0.463, -1.389,  0.926])
+    """
     n_days, n_stocks = u.returns.shape
     raw = np.full((n_days, n_stocks), np.nan)
     for t in range(window, n_days):
